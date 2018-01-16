@@ -2,7 +2,7 @@
 #pragma once
 #include <cassert>
 #include <cstdint>
-#include <memory_resource>
+#include <experimental/memory_resource>
 
 #define NSLS_ASSERT(condition) assert(condition)
 
@@ -30,11 +30,13 @@ using Real   = double;
 
 using Size = std::size_t;
 
+namespace pmr = std::experimental::pmr;
+
 template<typename T>
 constexpr T declval = std::declval<T>();
 
 template<typename T>
-using Allocator = std::pmr::polymorphic_allocator<T>;
+using Allocator = pmr::polymorphic_allocator<T>;
 
 template<typename T>
 using InitializerList = std::initializer_list<T>;
@@ -42,31 +44,142 @@ using InitializerList = std::initializer_list<T>;
 template<typename T>
 using ReverseIterator = std::reverse_iterator<T>;
 
-template<typename T>
-struct GenericVector;
-
-using IntegerVector = GenericVector<Integer>;
-using NaturalVector = GenericVector<Natural>;
-using RealVector    = GenericVector<Real>;
-using Vector        = GenericVector<Real>;
+template <typename T>
+        struct Range;
 
 template<typename T>
-struct GenericVectorRef;
-
-using IntegerVectorRef = GenericVectorRef<Integer>;
-using NaturalVectorRef = GenericVectorRef<Natural>;
-using RealVectorRef    = GenericVectorRef<Real>;
-using VectorRef        = GenericVectorRef<Real>;
+struct Matrix;
 
 template<typename T>
-struct GenericVectorRefIterator;
+struct MatrixRef;
 
 template<typename T>
-struct GenericVectorRef
+struct MatrixIterator;
+
+template<typename T>
+struct Vector;
+
+template<typename T>
+struct VectorRef;
+
+template<typename T>
+struct VectorRefIterator;
+
+template<typename T>
+struct VectorRefIterator
 {
     // TYPES
-    using Allocator = nsls::Allocator<T>;
+    using Element         = T;
+    using ElementRef      = T&;
+    using ElementConstRef = const T&;
+    using ElementPtr      = T*;
+    using ElementConstPtr = const T*;
 
+    using Difference = Size;
+
+    // CREATORS
+    constexpr VectorRefIterator(ElementPtr begin, ElementPtr end) noexcept;
+
+    constexpr VectorRefIterator(
+            ElementPtr begin, ElementPtr end, Size stepSize) noexcept;
+
+    constexpr VectorRefIterator(const VectorRefIterator& original) noexcept =
+            default;
+
+    constexpr VectorRefIterator(VectorRefIterator&& original) noexcept =
+            default;
+
+    ~VectorRefIterator() noexcept = default;
+
+    // MANIPULATORS
+    constexpr auto
+    operator=(const VectorRefIterator& original) noexcept = default;
+
+    constexpr auto operator=(VectorRefIterator&& original) noexcept = default;
+
+    constexpr auto operator*() noexcept -> ElementRef;
+
+    constexpr auto operator-> () noexcept -> ElementPtr;
+
+    constexpr auto operator[](Size index) noexcept -> ElementRef;
+
+    constexpr auto operator++() noexcept -> VectorRefIterator&;
+
+    constexpr auto operator--() noexcept -> VectorRefIterator&;
+
+    constexpr auto operator+=(Size offset) noexcept -> VectorRefIterator&;
+
+    constexpr auto operator-=(Size offset) noexcept -> VectorRefIterator&;
+
+    // ACCESSORS
+    constexpr auto operator*() const noexcept -> ElementConstRef;
+
+    constexpr auto operator-> () const noexcept -> ElementConstPtr;
+
+    constexpr auto operator[](Size index) const noexcept -> ElementConstRef;
+
+    // FREE OPERATORS
+    template<typename U>
+    friend constexpr auto
+    operator+(const VectorRefIterator<U>& iter, Size offset)
+            -> VectorRefIterator<U>;
+
+    template<typename U>
+    friend constexpr auto
+    operator+(Size offset, const VectorRefIterator<U>& iter)
+            -> VectorRefIterator<U>;
+
+    template<typename U>
+    friend constexpr auto
+    operator-(const VectorRefIterator<U>& iter, Size offset)
+            -> VectorRefIterator<U>;
+
+    template<typename U>
+    friend constexpr auto
+    operator-(const VectorRefIterator<U>& lhs, const VectorRefIterator<U>& rhs)
+            -> Difference;
+
+    template<typename U>
+    friend constexpr auto
+    operator<(const VectorRefIterator<U>& lhs, const VectorRefIterator<U>& rhs)
+            -> Boolean;
+
+    template<typename U>
+    friend constexpr auto operator<=(
+            const VectorRefIterator<U>& lhs, const VectorRefIterator<U>& rhs)
+            -> Boolean;
+
+    template<typename U>
+    friend constexpr auto
+    operator>(const VectorRefIterator<U>& lhs, const VectorRefIterator<U>& rhs)
+            -> Boolean;
+
+    template<typename U>
+    friend constexpr auto operator>=(
+            const VectorRefIterator<U>& lhs, const VectorRefIterator<U>& rhs)
+            -> Boolean;
+
+    template<typename U>
+    friend constexpr auto operator==(
+            const VectorRefIterator<U>& lhs, const VectorRefIterator<U>& rhs)
+            -> Boolean;
+
+    template<typename U>
+    friend constexpr auto operator!=(
+            const VectorRefIterator<U>& lhs, const VectorRefIterator<U>& rhs)
+            -> Boolean;
+
+  public:
+    // DATA
+    ElementPtr d_begin;
+    ElementPtr d_end;
+    Size       d_stepSize;
+};
+
+template<typename T>
+struct VectorRef
+{
+    // TYPES
     using Element         = T;
     using ElementRef      = T&;
     using ElementConstRef = const T&;
@@ -78,131 +191,134 @@ struct GenericVectorRef
     using ReverseIterator      = nsls::ReverseIterator<Iterator>;
     using ConstReverseIterator = nsls::ReverseIterator<ConstIterator>;
 
-    using GenericVectorRef = nsls::GenericVectorRef<T>;
+    using InitializerList = nsls::InitializerList<Element>;
 
     // CREATORS
-    GenericVectorRef(ElementPtr* first, ElementPtr* last);
+    constexpr VectorRef(ElementPtr first, ElementPtr last) noexcept;
 
-    GenericVectorRef(ElementPtr* first, ElementPtr* last, Size stepSize);
+    constexpr VectorRef(
+            ElementPtr first, ElementPtr last, Size stepSize) noexcept;
 
-    template<Size size>
-    GenericVectorRef(Element (&elements)[size]);
+    constexpr VectorRef(InitializerList initializer) noexcept;
 
-    template<Size size>
-    GenericVectorRef(Element(&&elements)[size]) = delete;
+    constexpr VectorRef(const VectorRef& original) noexcept = default;
 
-    GenericVectorRef(const GenericVectorRef& original);
+    constexpr VectorRef(VectorRef&& original) noexcept = default;
 
-    GenericVectorRef(GenericVectorRef&& original);
-
-    ~GenericVectorRef() noexcept = default;
+    ~VectorRef() noexcept = default;
 
     // MANIPULATORS
-    auto operator=(const GenericVectorRef& original) -> GenericVectorRef&;
+    constexpr auto operator=(const VectorRef& original) noexcept
+            -> VectorRef&  = default;
 
-    auto operator=(GenericVectorRef&& original) -> GenericVectorRef&;
+    constexpr auto operator=(VectorRef&& original) noexcept
+            -> VectorRef&  = default;
 
-    auto operator+=(const GenericVectorRef& rhs) -> GenericVectorRef&;
+    constexpr auto operator+=(const VectorRef& rhs) noexcept -> VectorRef&;
 
-    auto operator-=(const GenericVectorRef& rhs) -> GenericVectorRef&;
+    constexpr auto operator-=(const VectorRef& rhs) noexcept -> VectorRef&;
 
-    auto operator*=(ElementConstRef rhs) -> GenericVectorRef&;
+    constexpr auto operator*=(ElementConstRef rhs) noexcept -> VectorRef&;
 
-    auto operator/=(ElementConstRef rhs) -> GenericVectorRef&;
+    constexpr auto operator/=(ElementConstRef rhs) noexcept -> VectorRef&;
 
-    auto operator[](Size index) -> ElementRef;
+    constexpr auto operator[](Size index) noexcept -> ElementRef;
 
-    auto begin() -> Iterator { return *d_begin_p; }
+    constexpr auto begin() noexcept -> Iterator;
 
-    auto end() -> Iterator { return *d_end_p; }
+    constexpr auto end() noexcept -> Iterator;
 
-    auto rbegin() -> ReverseIterator { return ReverseIterator(*d_begin_p); }
+    constexpr auto rbegin() noexcept -> ReverseIterator;
 
-    auto rend() -> ReverseIterator { return ReverseIterator(*d_end_p); }
+    constexpr auto rend() noexcept -> ReverseIterator;
 
-    auto size() -> Size { return *d_end_p - *d_begin_p; }
+    constexpr auto size() noexcept -> Size;
 
-    void swap(GenericVectorRef& other);
-
-    void reset();
+    constexpr void swap(VectorRef& other);
 
     // ACCESSORS
-    auto operator[](Size index) const -> ElementConstRef;
+    constexpr auto operator[](Size index) const noexcept -> ElementConstRef;
 
-    auto operator-() const -> GenericVector<T>;
+    auto operator-() const -> Vector<T>;
 
-    auto operator+() const -> GenericVector<T>;
+    auto operator+() const -> Vector<T>;
 
-    auto begin() const -> ConstIterator;
+    constexpr auto begin() const noexcept -> ConstIterator;
 
-    auto end() const -> ConstIterator;
+    constexpr auto end() const noexcept -> ConstIterator;
 
-    auto cbegin() const -> ConstIterator;
+    constexpr auto cbegin() const noexcept -> ConstIterator;
 
-    auto cend() const -> ConstIterator;
+    constexpr auto cend() const noexcept -> ConstIterator;
 
-    auto rbegin() const -> ConstReverseIterator;
+    constexpr auto rbegin() const noexcept -> ConstReverseIterator;
 
-    auto rend() const -> ConstReverseIterator;
+    constexpr auto rend() const noexcept -> ConstReverseIterator;
 
-    auto crbegin() const -> ConstReverseIterator;
+    constexpr auto crbegin() const noexcept -> ConstReverseIterator;
 
-    auto crend() const -> ConstReverseIterator;
+    constexpr auto crend() const noexcept -> ConstReverseIterator;
 
     // FREE OPERATORS
-    friend auto
-    operator+(const GenericVectorRef& lhs, const GenericVectorRef& rhs)
-            -> GenericVector;
+    template<typename U>
+    friend auto operator+(const VectorRef<U>& lhs, const VectorRef<U>& rhs)
+            -> Vector<U>;
 
-    friend auto
-    operator-(const GenericVectorRef& lhs, const GenericVectorRef& rhs)
-            -> GenericVector;
+    template<typename U>
+    friend auto operator-(const VectorRef<U>& lhs, const VectorRef<U>& rhs)
+            -> Vector<U>;
 
-    friend auto operator*(ElementConstRef lhs, const GenericVectorRef& rhs)
-            -> GenericVector;
+    template<typename U>
+    friend auto operator*(const U& lhs, const VectorRef<U>& rhs) -> Vector<U>;
 
-    friend auto operator*(const GenericVectorRef& lhs, ElementConstRef rhs)
-            -> GenericVector;
+    template<typename U>
+    friend auto operator*(const VectorRef<U>& lhs, const U& rhs) -> Vector<U>;
 
-    friend auto operator/(ElementConstRef lhs, const GenericVectorRef& rhs)
-            -> GenericVector;
+    template<typename U>
+    friend auto operator/(const U& lhs, const VectorRef<U>& rhs) -> Vector<U>;
 
-    friend auto operator/(const GenericVectorRef& lhs, ElementConstRef rhs)
-            -> GenericVector;
+    template<typename U>
+    friend auto operator/(const VectorRef<U>& lhs, const U& rhs) -> Vector<U>;
 
-    friend auto
-    operator<(const GenericVectorRef& lhs, const GenericVectorRef& rhs)
+    template<typename U>
+    friend constexpr auto
+    operator<(const VectorRef<U>& lhs, const VectorRef<U>& rhs) noexcept
             -> Boolean;
 
-    friend auto
-    operator<=(const GenericVectorRef& lhs, const GenericVectorRef& rhs)
+    template<typename U>
+    friend constexpr auto
+    operator<=(const VectorRef<U>& lhs, const VectorRef<U>& rhs) noexcept
             -> Boolean;
 
-    friend auto
-    operator>(const GenericVectorRef& lhs, const GenericVectorRef& rhs)
+    template<typename U>
+    friend constexpr auto
+    operator>(const VectorRef<U>& lhs, const VectorRef<U>& rhs) noexcept
             -> Boolean;
 
-    friend auto
-    operator>=(const GenericVectorRef& lhs, const GenericVectorRef& rhs)
+    template<typename U>
+    friend constexpr auto
+    operator>=(const VectorRef<U>& lhs, const VectorRef<U>& rhs) noexcept
             -> Boolean;
 
-    friend auto
-    operator==(const GenericVectorRef& lhs, const GenericVectorRef& rhs)
+    template<typename U>
+    friend constexpr auto
+    operator==(const VectorRef<U>& lhs, const VectorRef<U>& rhs) noexcept
             -> Boolean;
 
-    friend auto
-    operator!=(const GenericVectorRef& lhs, const GenericVectorRef& rhs)
+    template<typename U>
+    friend constexpr auto
+    operator!=(const VectorRef<U>& lhs, const VectorRef<U>& rhs) noexcept
             -> Boolean;
 
   private:
     // DATA
-    ElementPtr* d_begin_p;
-    ElementPtr* d_end_p;
-    Size        d_stepSize;
+    ElementPtr d_begin;
+    ElementPtr d_end;
+    Size       d_stepSize;
 };
 
 template<typename T>
-struct GenericVector
+struct Vector
 {
     // TYPES
     using Allocator = nsls::Allocator<T>;
@@ -218,72 +334,62 @@ struct GenericVector
     using ReverseIterator      = nsls::ReverseIterator<Iterator>;
     using ConstReverseIterator = nsls::ReverseIterator<ConstIterator>;
 
-    using GenericVectorRef = nsls::GenericVectorRef<T>;
+    using VectorRef = nsls::VectorRef<T>;
 
     // CREATORS
-    explicit GenericVector(const Allocator& allocator = Allocator());
+    explicit Vector(const Allocator& allocator = Allocator());
 
-    explicit GenericVector(
-            Size count, const Allocator& allocator = Allocator());
+    explicit Vector(Size count, const Allocator& allocator = Allocator());
 
-    GenericVector(
-            Size             count,
-            ElementConstRef  value,
-            const Allocator& allocator = Allocator());
+    Vector(Size             count,
+           ElementConstRef  value,
+           const Allocator& allocator = Allocator());
 
-    explicit GenericVector(
+    explicit Vector(
             InitializerList<Element> initializer,
             const Allocator&         allocator = Allocator());
 
     template<typename InputIter>
-    GenericVector(
-            InputIter        first,
-            InputIter        last,
-            const Allocator& allocator = Allocator());
+    Vector(InputIter        first,
+           InputIter        last,
+           const Allocator& allocator = Allocator());
 
-    GenericVector(
-            const GenericVector& original,
-            const Allocator&     allocator = Allocator());
+    Vector(const Vector& original, const Allocator& allocator = Allocator());
 
-    GenericVector(
-            const GenericVectorRef& originalRef,
-            const Allocator&        allocator = Allocator());
+    Vector(const VectorRef& originalRef,
+           const Allocator& allocator = Allocator());
 
-    GenericVector(
-            GenericVector&&  original,
-            const Allocator& allocator = Allocator());
+    Vector(Vector&& original, const Allocator& allocator = Allocator());
 
-    GenericVector(
-            GenericVectorRef&& originalRef,
-            const Allocator&   allocator = Allocator());
+    Vector(VectorRef&& originalRef, const Allocator& allocator = Allocator());
 
-    ~GenericVector() noexcept;
+    ~Vector() noexcept;
 
     // MANIPULATORS
-    auto operator=(const GenericVector& original) -> GenericVector&;
+    auto operator=(const Vector& original) -> Vector&;
 
-    auto operator=(const GenericVectorRef& originalRef) -> GenericVector&;
+    auto operator=(const VectorRef& originalRef) -> Vector&;
 
-    auto operator=(GenericVector&& original) -> GenericVector&;
+    auto operator=(Vector&& original) -> Vector&;
 
-    auto operator=(GenericVectorRef&& originalRef) -> GenericVector&;
+    auto operator=(VectorRef&& originalRef) -> Vector&;
 
-    auto operator+=(const GenericVector& rhs) -> GenericVector&;
+    auto operator+=(const Vector& rhs) -> Vector&;
 
-    auto operator-=(const GenericVector& rhs) -> GenericVector&;
+    auto operator-=(const Vector& rhs) -> Vector&;
 
-    auto operator*=(ElementConstRef rhs) -> GenericVector&;
+    auto operator*=(ElementConstRef rhs) -> Vector&;
 
-    auto operator/=(ElementConstRef rhs) -> GenericVector&;
+    auto operator/=(ElementConstRef rhs) -> Vector&;
 
     auto operator[](Size index) -> ElementRef;
 
-    auto assign(Size count, ElementConstRef value) -> GenericVector&;
+    auto assign(Size count, ElementConstRef value) -> Vector&;
 
     template<typename InputIter>
-    auto assign(InputIter first, InputIter last) -> GenericVector&;
+    auto assign(InputIter first, InputIter last) -> Vector&;
 
-    auto assign(InitializerList initializer) -> GenericVector&;
+    auto assign(InitializerList initializer) -> Vector&;
 
     auto begin() -> Iterator;
 
@@ -295,20 +401,20 @@ struct GenericVector
 
     auto size() -> Size;
 
-    void swap(GenericVector& other);
+    void swap(Vector& other);
 
-    void swap(GenericVectorRef& otherRef);
+    void swap(VectorRef& otherRef);
 
     void reset();
 
-    operator GenericVectorRef();
+    operator VectorRef();
 
     // ACCESSORS
     auto operator[](Size index) const -> ElementConstRef;
 
-    auto operator-() const -> GenericVector;
+    auto operator-() const -> Vector;
 
-    auto operator+() const -> GenericVector;
+    auto operator+() const -> Vector;
 
     auto begin() const -> ConstIterator;
 
@@ -328,44 +434,34 @@ struct GenericVector
 
     auto size() const -> Size;
 
-    operator const GenericVectorRef() const;
+    operator const VectorRef() const;
 
     // FREE OPERATORS
-    friend auto operator+(const GenericVector& lhs, const GenericVector& rhs)
-            -> GenericVector;
+    template<typename U>
+    friend auto operator+(const Vector<U>& lhs, const Vector<U>& rhs)
+            -> Vector<U>;
 
-    friend auto operator-(const GenericVector& lhs, const GenericVector& rhs)
-            -> GenericVector;
+    friend auto operator-(const Vector& lhs, const Vector& rhs) -> Vector;
 
-    friend auto operator*(ElementConstRef lhs, const GenericVector& rhs)
-            -> GenericVector;
+    friend auto operator*(ElementConstRef lhs, const Vector& rhs) -> Vector;
 
-    friend auto operator*(const GenericVector& lhs, ElementConstRef rhs)
-            -> GenericVector;
+    friend auto operator*(const Vector& lhs, ElementConstRef rhs) -> Vector;
 
-    friend auto operator/(ElementConstRef lhs, const GenericVector& rhs)
-            -> GenericVector;
+    friend auto operator/(ElementConstRef lhs, const Vector& rhs) -> Vector;
 
-    friend auto operator/(const GenericVector& lhs, ElementConstRef rhs)
-            -> GenericVector;
+    friend auto operator/(const Vector& lhs, ElementConstRef rhs) -> Vector;
 
-    friend auto operator<(const GenericVector& lhs, const GenericVector& rhs)
-            -> Boolean;
+    friend auto operator<(const Vector& lhs, const Vector& rhs) -> Boolean;
 
-    friend auto operator<=(const GenericVector& lhs, const GenericVector& rhs)
-            -> Boolean;
+    friend auto operator<=(const Vector& lhs, const Vector& rhs) -> Boolean;
 
-    friend auto operator>(const GenericVector& lhs, const GenericVector& rhs)
-            -> Boolean;
+    friend auto operator>(const Vector& lhs, const Vector& rhs) -> Boolean;
 
-    friend auto operator>=(const GenericVector& lhs, const GenericVector& rhs)
-            -> Boolean;
+    friend auto operator>=(const Vector& lhs, const Vector& rhs) -> Boolean;
 
-    friend auto operator==(const GenericVector& lhs, const GenericVector& rhs)
-            -> Boolean;
+    friend auto operator==(const Vector& lhs, const Vector& rhs) -> Boolean;
 
-    friend auto operator!=(const GenericVector& lhs, const GenericVector& rhs)
-            -> Boolean;
+    friend auto operator!=(const Vector& lhs, const Vector& rhs) -> Boolean;
 
   private:
     // DATA
@@ -375,7 +471,37 @@ struct GenericVector
 };
 
 template<typename T>
-GenericVector<T>::GenericVector(const Allocator& allocator = Allocator());
+struct Matrix
+{
+    // TYPES
+    using Allocator = nsls::Allocator<T>;
+
+    using Element         = T;
+    using ElementRef      = T&;
+    using ElementConstRef = const T&;
+    using ElementPtr      = T*;
+    using ElementConstPtr = const T*;
+
+    using Vector         = nsls::Vector<T>;
+    using VectorRef      = nsls::VectorRef<T>;
+    using VectorConstRef = const nsls::VectorRef<T>;
+
+    // CREATORS
+
+    // MANIPULATORS
+
+    // ACCESSORS
+
+  public:
+    // DATA
+    Allocator  d_allocator;
+    ElementPtr d_begin;
+    ElementPtr d_end;
+    Size       d_numRows;
+};
+
+template<typename T>
+Vector<T>::Vector(const Allocator& allocator = Allocator());
 : d_allocator(allocator)
 , d_begin(nullptr)
 , d_end(nullptr)
@@ -383,7 +509,7 @@ GenericVector<T>::GenericVector(const Allocator& allocator = Allocator());
 }
 
 template<typename T>
-GenericVector<T>::~GenericVector()
+Vector<T>::~Vector() noexcept
 {
     if (d_begin == d_end) {
         return; // RETURN
